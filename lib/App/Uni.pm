@@ -27,7 +27,7 @@ App::Uni - Command-line utility to grep UnicodeData.txt
 This module installs a simple program, F<uni>, that helps grepping through
 the Unicode database included in the current Perl 5 installation.
 
-For information on how to use F<uni> consult the L<uni> man page.
+For information on how to use F<uni> consult the L<uni> documentation.
 
 =head1 ACKNOWLEDGEMENTS
 
