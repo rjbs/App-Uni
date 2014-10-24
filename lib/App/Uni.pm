@@ -52,7 +52,7 @@ use Unicode::GCString;
 sub run {
   my ($class, @argv) = @_;
 
-  unless (@argv) {
+  if (! @argv or $argv[0] eq '--help') {
     die join qq{\n}, "usage:",
       "  uni ONE-CHARACTER    - print the codepoint and name of character",
       "  uni SEARCH-TERMS...  - search for codepoints with matching names",
@@ -66,7 +66,10 @@ sub run {
 
   shift @argv if $todo;
 
-  die "only one swich allowed!\n" if grep /\A-./, @argv;
+  if (grep /\A-./, @argv) {
+    die "uni: only one swich allowed!\n" if $todo;
+    die "uni: unknown switch $argv[0]\n";
+  }
 
   $todo //= @argv == 1 && length $argv[0] == 1
           ? \&one_char
