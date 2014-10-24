@@ -1,6 +1,8 @@
 Revision history for App-Uni
 
 {{$NEXT}}
+
+9.000     2014-10-24 12:34:12-04:00 America/New_York
         * total rewrite, done with much love, by rjbs
         * now supports lookup by hex code
         * now supports single ascii char lookup
