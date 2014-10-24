@@ -1,0 +1,91 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+# PODNAME: uni
+# ABSTRACT: command-line utility to find or display Unicode characters
+
+use App::Uni;
+use Encode qw(decode);
+
+binmode STDOUT, ':encoding(utf-8)';
+
+@ARGV = map {; decode('UTF-8', $_) } @ARGV;
+
+App::Uni->run(@ARGV);
+
+=head1 DESCRIPTION
+
+  $ uni ☺
+  263A ☺ WHITE SMILING FACE
+
+  # Only on Perl 5.14+
+  $ uni wry
+  1F63C <U+1F63C> CAT FACE WITH WRY SMILE
+
+F<uni> has several modes of operation:
+
+=head2 Single Character Mode
+
+  $ uni SINGLE-CHAR
+
+This will print out the name and codepoint of the character.
+
+  $ uni ¿
+  ¿ - U+000BF - INVERTED QUESTION MARK
+
+=head2 Name Search Mode
+
+  $ uni SOME /SEARCH/ TERMS
+
+This one will look for codepoints where each term appears as a (\b-bounded)
+word in the name. If the term is bounded by slashes, it's treated as a regular
+expression and is used to filter candidate codepoints by name.
+
+  $ uni roman five
+  Ⅴ - U+02164 - ROMAN NUMERAL FIVE
+  Ⅾ - U+0216E - ROMAN NUMERAL FIVE HUNDRED
+  ⅴ - U+02174 - SMALL ROMAN NUMERAL FIVE
+  ⅾ - U+0217E - SMALL ROMAN NUMERAL FIVE HUNDRED
+  ↁ - U+02181 - ROMAN NUMERAL FIVE THOUSAND
+
+=head2 String Decomposition
+
+  $ uni -c SOME STRINGS
+
+This prints out the codepoints in each string, with a blank line between each
+argument's codepoints.
+
+  $ uni -c Hey リコ
+  H - U+00048 - LATIN CAPITAL LETTER H
+  e - U+00065 - LATIN SMALL LETTER E
+  y - U+00079 - LATIN SMALL LETTER Y
+
+  リ- U+030EA - KATAKANA LETTER RI
+  コ- U+030B3 - KATAKANA LETTER KO
+
+=head2 Lookup By Codepoint
+
+  $ uni -u NUMBERS IN HEX
+
+This prints out the codepoint for each given hex value.
+
+  $ uni -u FF 1FF 10FF
+  ÿ - U+000FF - LATIN SMALL LETTER Y WITH DIAERESIS
+  ǿ - U+001FF - LATIN SMALL LETTER O WITH STROKE AND ACUTE
+  ჿ - U+010FF - GEORGIAN LETTER LABIAL SIGN
+
+=head1 NOTES
+
+If you'd like to search for Emojis in Unicode 6.0, please upgrade to Perl 5.14!
+
+=head1 ACKNOWLEDGEMENTS
+
+This is a re-implementation of a program written by Audrey Tang in Taiwan.  I
+used that program for years before deciding I wanted to add a few features,
+which I did by rewriting from scratch.
+
+That program, in turn, was a re-implementation of a same-named program Larry
+copied to me, which accompanied Audrey for years.  However, that program was
+lost during a hard disk failure, so she coded it up from memory.
+
+Thank-you, Larry, for everything. ♡
