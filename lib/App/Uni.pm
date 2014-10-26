@@ -63,6 +63,8 @@ sub run {
   my $todo;
   $todo = \&split_string if @argv && $argv[0] eq '-c';
   $todo = \&codepoints   if @argv && $argv[0] eq '-u';
+  $todo = \&search_chars if @argv && $argv[0] eq '-n';
+  $todo = \&one_char     if @argv && $argv[0] eq '-s';
 
   shift @argv if $todo;
 
@@ -71,13 +73,9 @@ sub run {
     die "uni: unknown switch $argv[0]\n";
   }
 
-  if (@argv == grep { /\A[0-9A-Fa-f]*[0-9][0-9A-Fa-f]*\z/ } @argv) {
-    $todo = \&codepoints;
-  }
-
   $todo //= @argv == 1 && length $argv[0] == 1
           ? \&one_char
-          : \&search_chars;
+          : \&search_dwim;
 
   $todo->(@argv);
 }
@@ -123,14 +121,17 @@ sub print_chars {
   }
 }
 
-sub codepoints {
+sub find_codepoints {
   my (@points) = @_;
 
   my @chars = map {; chr hex s/\Au\+//r } @points;
-  print_chars(@chars);
 }
 
-sub search_chars {
+sub codepoints {
+  print_chars( find_codepoints(@_) );
+}
+
+sub find_chars {
   my @terms = map {; s{\A/(.+)/\z}{$1} ? qr/$_/i : qr/\b$_\b/i } @_;
 
   my $corpus = require 'unicore/Name.pl';
@@ -152,7 +153,25 @@ sub search_chars {
     push @chars, chr hex substr $line, 0, $i;
   }
 
+  return @chars;
+}
+
+sub search_chars {
+  my @chars = find_chars(@_);
   print_chars(@chars);
+}
+
+sub smerge {
+  my %splat = map {; $_ => 1 } @_;
+  return sort keys %splat;
+}
+
+sub search_dwim {
+  my (@argv) = @_;
+  my @chars = find_chars(@argv);
+  my @maybe = grep {; /\A(?:U?\+)?[0-9A-Fa-f]+\z/ } @argv;
+  push @chars, find_codepoints(@maybe) if @maybe;
+  print_chars(smerge(@chars));
 }
 
 1;
