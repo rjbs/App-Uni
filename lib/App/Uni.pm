@@ -136,7 +136,7 @@ sub print_chars {
 
 sub chars_by_u_numbers {
   my ($points) = @_;
-  my @chars = map {; chr hex s/\Au\+//r } @$points;
+  my @chars = map {; /\A(?:u\+)?(.+)/; chr hex $1 } @$points;
   return \@chars;
 }
 
@@ -147,7 +147,16 @@ sub do_names {
 }
 
 sub chars_by_name {
-  my @terms = map {; s{\A/(.+)/\z}{$1} ? qr/$_/i : qr/\b$_\b/i } @{ $_[0] };
+  my ($input_terms, $arg) = @_;
+  my @terms = map {; { pattern => s{\A/(.+)/\z}{$1} ? qr/$_/i : qr/\b$_\b/i } }
+              @$input_terms;
+
+  if ($arg && $arg->{match_codepoints}) {
+    for (0 .. $#terms) {
+      $terms[$_]{ord} = hex $input_terms->[$_]
+        if $input_terms->[$_] =~ /\A[0-9A-Fa-f]+\z/;
+    }
+  }
 
   my $corpus = require 'unicore/Name.pl';
   die "somebody beat us here" if $corpus eq '1';
@@ -161,7 +170,12 @@ sub chars_by_name {
     next if rindex($line, " ", $i) >= 0; # no sequences
 
     my $name = substr($line, $i+1);
-    $name =~ $_ || next LINE for @terms;
+    my $ord  = hex substr($line, 0, $i);
+
+    for (@terms) {
+      next LINE unless $name =~ $_->{pattern}
+                or     defined $_->{ord} && $_->{ord} == $ord;
+    }
 
     my $c = chr hex substr $line, 0, $i;
     next if $seen{$c}++;
@@ -178,10 +192,8 @@ sub smerge {
 
 sub do_dwim {
   my ($argv) = @_;
-  my $chars = chars_by_name($argv);
-  my @maybe = grep {; /\A(?:U?\+)?[0-9A-Fa-f]+\z/ } @$argv;
-  push @$chars, @{ chars_by_u_numbers(\@maybe) } if @maybe;
-  print_chars(smerge($chars));
+  my $chars = chars_by_name($argv, { match_codepoints => 1 });
+  print_chars($chars);
 }
 
 1;

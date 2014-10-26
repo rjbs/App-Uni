@@ -1,12 +1,15 @@
 Revision history for App-Uni
 
 {{$NEXT}}
+        - default behavior is now "dwim"
+        - added -n for "search names only"
+        - refactored to be testable, but no actual tests exist 😏
 
 9.000     2014-10-24 12:34:12-04:00 America/New_York
-        * total rewrite, done with much love, by rjbs
-        * now supports lookup by hex code
-        * now supports single ascii char lookup
-        * now supports multiple fixed substring lookup
+        - total rewrite, done with much love, by rjbs
+        - now supports lookup by hex code
+        - now supports single ascii char lookup
+        - now supports multiple fixed substring lookup
 
 [Changes for v8 - 2011年 7月 6日 周三 08時32分43秒 CST]
 

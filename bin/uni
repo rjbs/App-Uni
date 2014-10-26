@@ -24,24 +24,31 @@ App::Uni->run(@ARGV);
 
 F<uni> has several modes of operation:
 
+=head2 DWIM Mode
+
+By default, F<uni> will interpret your arguments usefully.  If the only
+argument is a single character, it will be looked up.  Otherwise, it will work
+in name search mode, with the exception that search terms comprised entirely
+of hex digits are allowed to match against the codepoint's numeric value.
+
 =head2 Single Character Mode
 
-  $ uni SINGLE-CHAR
+  $ uni -s SINGLE-CHAR
 
 This will print out the name and codepoint of the character.
 
-  $ uni ¿
+  $ uni -s ¿
   ¿ - U+000BF - INVERTED QUESTION MARK
 
 =head2 Name Search Mode
 
-  $ uni SOME /SEARCH/ TERMS
+  $ uni -n SOME /SEARCH/ TERMS
 
 This one will look for codepoints where each term appears as a (\b-bounded)
 word in the name. If the term is bounded by slashes, it's treated as a regular
 expression and is used to filter candidate codepoints by name.
 
-  $ uni roman five
+  $ uni -n roman five
   Ⅴ - U+02164 - ROMAN NUMERAL FIVE
   Ⅾ - U+0216E - ROMAN NUMERAL FIVE HUNDRED
   ⅴ - U+02174 - SMALL ROMAN NUMERAL FIVE
