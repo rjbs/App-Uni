@@ -71,6 +71,10 @@ sub run {
     die "uni: unknown switch $argv[0]\n";
   }
 
+  if (@argv == grep { /\A[0-9A-Fa-f]*[0-9][0-9A-Fa-f]*\z/ } @argv) {
+    $todo = \&codepoints;
+  }
+
   $todo //= @argv == 1 && length $argv[0] == 1
           ? \&one_char
           : \&search_chars;
