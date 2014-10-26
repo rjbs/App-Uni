@@ -144,7 +144,8 @@ sub search_chars {
     my $i = index($line, "\t");
     next if rindex($line, " ", $i) >= 0; # no sequences
 
-    $line =~ $_ || next LINE for @terms;
+    my $name = substr($line, $i+1);
+    $name =~ $_ || next LINE for @terms;
 
     my $c = chr hex substr $line, 0, $i;
     next if $seen{$c}++;
