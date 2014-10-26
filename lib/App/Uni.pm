@@ -53,18 +53,19 @@ sub run {
   my ($class, @argv) = @_;
 
   if (! @argv or $argv[0] eq '--help') {
-    die join qq{\n}, "usage:",
-      "  uni ONE-CHARACTER    - print the codepoint and name of character",
-      "  uni SEARCH-TERMS...  - search for codepoints with matching names",
-      "  uni -c STRINGS...    - print out the codepoints in a string",
-      "  uni -u CODEPOINTS... - look up and print hex codepoints\n";
+    die join qq{\n  }, "usage:",
+      "uni SEARCH-TERMS...    - find codepoints with matching names or values",
+      "uni [-s] ONE-CHARACTER - print the codepoint and name of one character",
+      "uni -n SEARCH-TERMS... - find codepoints with matching names",
+      "uni -c STRINGS...      - print out the codepoints in a string",
+      "uni -u CODEPOINTS...   - look up and print hex codepoints\n";
   }
 
   my $todo;
-  $todo = \&split_string if @argv && $argv[0] eq '-c';
-  $todo = \&codepoints   if @argv && $argv[0] eq '-u';
-  $todo = \&search_chars if @argv && $argv[0] eq '-n';
-  $todo = \&one_char     if @argv && $argv[0] eq '-s';
+  $todo = \&do_explode    if @argv && $argv[0] eq '-c';
+  $todo = \&do_u_numbers  if @argv && $argv[0] eq '-u';
+  $todo = \&do_names      if @argv && $argv[0] eq '-n';
+  $todo = \&do_single     if @argv && $argv[0] eq '-s';
 
   shift @argv if $todo;
 
@@ -74,30 +75,42 @@ sub run {
   }
 
   $todo //= @argv == 1 && length $argv[0] == 1
-          ? \&one_char
-          : \&search_dwim;
+          ? \&do_single
+          : \&do_dwim;
 
-  $todo->(@argv);
+  $todo->(\@argv);
 }
 
-sub one_char {
+sub do_single {
   print_chars(@_);
 }
 
-sub split_string {
-  my (@args) = @_;
+sub do_explode {
+  print_chars( explode_strings(@_) );
+}
 
-  while (my $str = shift @args) {
-    my @chars = split '', $str;
-    print_chars(@chars);
+sub explode_strings {
+  my ($strings) = @_;
 
-    say '' if @args;
+  my @chars;
+
+  while (my $str = shift @$strings) {
+    push @chars, split '', $str;
+    push @chars, undef if @$strings;
   }
+
+  return \@chars;
+}
+
+sub do_u_numbers {
+  print_chars( chars_by_u_numbers(@_) );
 }
 
 sub print_chars {
-  my (@chars) = @_;
-  for my $c (@chars) {
+  my ($chars) = @_;
+
+  for my $c (@$chars) {
+    unless (defined $c) { print "\n"; next }
 
     my $c2 = Unicode::GCString->new($c);
     my $l  = $c2->columns;
@@ -121,18 +134,20 @@ sub print_chars {
   }
 }
 
-sub find_codepoints {
-  my (@points) = @_;
-
-  my @chars = map {; chr hex s/\Au\+//r } @points;
+sub chars_by_u_numbers {
+  my ($points) = @_;
+  my @chars = map {; chr hex s/\Au\+//r } @$points;
+  return \@chars;
 }
 
-sub codepoints {
-  print_chars( find_codepoints(@_) );
+sub do_names {
+  my ($terms) = @_;
+
+  print_chars( chars_by_name( $terms ) );
 }
 
-sub find_chars {
-  my @terms = map {; s{\A/(.+)/\z}{$1} ? qr/$_/i : qr/\b$_\b/i } @_;
+sub chars_by_name {
+  my @terms = map {; s{\A/(.+)/\z}{$1} ? qr/$_/i : qr/\b$_\b/i } @{ $_[0] };
 
   my $corpus = require 'unicore/Name.pl';
   die "somebody beat us here" if $corpus eq '1';
@@ -153,25 +168,20 @@ sub find_chars {
     push @chars, chr hex substr $line, 0, $i;
   }
 
-  return @chars;
-}
-
-sub search_chars {
-  my @chars = find_chars(@_);
-  print_chars(@chars);
+  return \@chars;
 }
 
 sub smerge {
-  my %splat = map {; $_ => 1 } @_;
-  return sort keys %splat;
+  my %splat = map {; $_ => 1 } map { @$_ } @_;
+  return [ sort keys %splat ];
 }
 
-sub search_dwim {
-  my (@argv) = @_;
-  my @chars = find_chars(@argv);
-  my @maybe = grep {; /\A(?:U?\+)?[0-9A-Fa-f]+\z/ } @argv;
-  push @chars, find_codepoints(@maybe) if @maybe;
-  print_chars(smerge(@chars));
+sub do_dwim {
+  my ($argv) = @_;
+  my $chars = chars_by_name($argv);
+  my @maybe = grep {; /\A(?:U?\+)?[0-9A-Fa-f]+\z/ } @$argv;
+  push @$chars, @{ chars_by_u_numbers(\@maybe) } if @maybe;
+  print_chars(smerge($chars));
 }
 
 1;
