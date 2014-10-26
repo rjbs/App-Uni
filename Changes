@@ -1,6 +1,8 @@
 Revision history for App-Uni
 
 {{$NEXT}}
+
+9.001     2014-10-26 19:08:57-04:00 America/New_York
         - default behavior is now "dwim"
         - added -n for "search names only"
         - refactored to be testable, but no actual tests exist 😏
