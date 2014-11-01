@@ -2,6 +2,10 @@ Revision history for App-Uni
 
 {{$NEXT}}
 
+9.002     2014-10-31 20:34:32-04:00 America/New_York
+        - add "-8" to show UTF-8 encoded bytes
+        - better handling of errors and getopt
+
 9.001     2014-10-26 19:08:57-04:00 America/New_York
         - default behavior is now "dwim"
         - added -n for "search names only"
