@@ -47,38 +47,53 @@ use 5.10.0; # for \v
 use warnings;
 
 use charnames ();
+use Encode qw(encode_utf8);
+use Getopt::Long;
+use List::Util qw(max);
 use Unicode::GCString;
+
+sub _do_help {
+  my ($class) = @_;
+
+  die join qq{\n  }, "usage:",
+    "uni SEARCH-TERMS...    - find codepoints with matching names or values",
+    "uni [-s] ONE-CHARACTER - print the codepoint and name of one character",
+    "uni -n SEARCH-TERMS... - find codepoints with matching names",
+    "uni -c STRINGS...      - print out the codepoints in a string",
+    "uni -u CODEPOINTS...   - look up and print hex codepoints",
+    "",
+    "Other switches:",
+    "--utf8 or -8           - also show the UTF-8 bytes to encode\n";
+}
 
 sub run {
   my ($class, @argv) = @_;
 
-  if (! @argv or $argv[0] eq '--help') {
-    die join qq{\n  }, "usage:",
-      "uni SEARCH-TERMS...    - find codepoints with matching names or values",
-      "uni [-s] ONE-CHARACTER - print the codepoint and name of one character",
-      "uni -n SEARCH-TERMS... - find codepoints with matching names",
-      "uni -c STRINGS...      - print out the codepoints in a string",
-      "uni -u CODEPOINTS...   - look up and print hex codepoints\n";
+  my %opt;
+  {
+    local @ARGV = @argv;
+    GetOptions(
+      "c" => \$opt{explode},
+      "u" => \$opt{u_numbers},
+      "n" => \$opt{names},
+      "s" => \$opt{single},
+      "8" => \$opt{utf8},
+      "help|?" => sub { $class->_do_help },
+    );
+    @argv = @ARGV;
   }
 
-  my $todo;
-  $todo = \&do_explode    if @argv && $argv[0] eq '-c';
-  $todo = \&do_u_numbers  if @argv && $argv[0] eq '-u';
-  $todo = \&do_names      if @argv && $argv[0] eq '-n';
-  $todo = \&do_single     if @argv && $argv[0] eq '-s';
+  my $n = grep { $_ } @opt{qw(explode u_numbers names single)};
+  die "uni: only one mode switch allowed!\n" if $n > 1;
 
-  shift @argv if $todo;
+  my $todo  = $opt{explode}                       ? \&do_explode
+            : $opt{u_numbers}                     ? \&do_u_numbers
+            : $opt{names}                         ? \&do_names
+            : $opt{single}                        ? \&do_single
+            : @argv == 1 && length $argv[0] == 1  ? \&do_single
+            :                                       \&do_dwim;
 
-  if (grep /\A-./, @argv) {
-    die "uni: only one swich allowed!\n" if $todo;
-    die "uni: unknown switch $argv[0]\n";
-  }
-
-  $todo //= @argv == 1 && length $argv[0] == 1
-          ? \&do_single
-          : \&do_dwim;
-
-  $todo->(\@argv);
+  $todo->(\@argv, \%opt);
 }
 
 sub do_single {
@@ -86,7 +101,7 @@ sub do_single {
 }
 
 sub do_explode {
-  print_chars( explode_strings(@_) );
+  print_chars( explode_strings($_[0]), $_[1] );
 }
 
 sub explode_strings {
@@ -103,13 +118,30 @@ sub explode_strings {
 }
 
 sub do_u_numbers {
-  print_chars( chars_by_u_numbers(@_) );
+  print_chars( chars_by_u_numbers($_[0]), $_[1] );
 }
 
 sub print_chars {
-  my ($chars) = @_;
+  my ($chars, $opt) = @_;
 
-  for my $c (@$chars) {
+  my @to_print = $opt->{utf8}
+               ? (map {; [ $_ => defined && encode_utf8($_) ] } @$chars)
+               : (map {; [ $_ ] } @$chars);
+
+  my $width;
+  if ($opt->{utf8}) {
+    my $max_bytes = 0;
+    for my $todo (@to_print) {
+      $max_bytes = max($max_bytes, length $todo->[1]);
+      last if $max_bytes == 4; # maximum ever
+    }
+
+    $width = 2 * $max_bytes + $max_bytes - 1;
+  }
+
+  for my $todo (@to_print) {
+    my ($c, $u) = @$todo;
+
     unless (defined $c) { print "\n"; next }
 
     my $c2 = Unicode::GCString->new($c);
@@ -130,7 +162,12 @@ sub print_chars {
 
     my $chr  = ord($c);
     my $name = charnames::viacode($chr);
-    printf "%s- U+%05X - %s\n", $p, $chr, $name;
+    my $utf8 = $opt->{utf8}
+             ? (sprintf " - %${width}s",
+                 join q{ }, map {; sprintf '%02X', ord } split //, $u)
+             : '';
+
+    printf "%s- U+%05X%s - %s\n", $p, $chr, $utf8, $name;
   }
 }
 
@@ -141,9 +178,9 @@ sub chars_by_u_numbers {
 }
 
 sub do_names {
-  my ($terms) = @_;
+  my ($terms, $opt) = @_;
 
-  print_chars( chars_by_name( $terms ) );
+  print_chars( chars_by_name( $terms ), $opt );
 }
 
 sub chars_by_name {
@@ -191,9 +228,9 @@ sub smerge {
 }
 
 sub do_dwim {
-  my ($argv) = @_;
+  my ($argv, $opt) = @_;
   my $chars = chars_by_name($argv, { match_codepoints => 1 });
-  print_chars($chars);
+  print_chars($chars, $opt);
 }
 
 1;
