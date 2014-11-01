@@ -53,9 +53,10 @@ use List::Util qw(max);
 use Unicode::GCString;
 
 sub _do_help {
-  my ($class) = @_;
+  my $class = shift;
 
-  die join qq{\n  }, "usage:",
+  die
+    join qq{\n  }, join(qq{\n}, @_, @_ ? "" : (), "usage:"),
     "uni SEARCH-TERMS...    - find codepoints with matching names or values",
     "uni [-s] ONE-CHARACTER - print the codepoint and name of one character",
     "uni -n SEARCH-TERMS... - find codepoints with matching names",
@@ -63,7 +64,7 @@ sub _do_help {
     "uni -u CODEPOINTS...   - look up and print hex codepoints",
     "",
     "Other switches:",
-    "--utf8 or -8           - also show the UTF-8 bytes to encode\n";
+    "    -8                 - also show the UTF-8 bytes to encode\n";
 }
 
 sub run {
@@ -71,6 +72,7 @@ sub run {
 
   my %opt;
   {
+    my $exit;
     local @ARGV = @argv;
     GetOptions(
       "c" => \$opt{explode},
@@ -78,13 +80,18 @@ sub run {
       "n" => \$opt{names},
       "s" => \$opt{single},
       "8" => \$opt{utf8},
-      "help|?" => sub { $class->_do_help },
+      "help|?" => \$opt{help},
     );
     @argv = @ARGV;
   }
 
+  $class->_do_help if $opt{help};
+
   my $n = grep { $_ } @opt{qw(explode u_numbers names single)};
-  die "uni: only one mode switch allowed!\n" if $n > 1;
+
+  $class->_do_help("ERROR: only one mode switch allowed!") if $n > 1;
+
+  $class->_do_help if ! @argv;
 
   my $todo  = $opt{explode}                       ? \&do_explode
             : $opt{u_numbers}                     ? \&do_u_numbers
@@ -97,7 +104,11 @@ sub run {
 }
 
 sub do_single {
-  print_chars(@_);
+  my @chars    = grep { length } @{ $_[0] };
+  if (my @too_long = grep { length > 1 } @chars) {
+    die "some arguments were too long for use with -s: @too_long\n";
+  }
+  print_chars(\@chars, $_[1]);
 }
 
 sub do_explode {
