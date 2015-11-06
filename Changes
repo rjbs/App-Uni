@@ -1,6 +1,8 @@
 Revision history for App-Uni
 
 {{$NEXT}}
+        - when printing combining marks, give them a DOTTED CIRCLE
+          with which to combing (◌)
 
 9.002     2014-10-31 20:34:32-04:00 America/New_York
         - add "-8" to show UTF-8 encoded bytes

@@ -155,7 +155,10 @@ sub print_chars {
 
     unless (defined $c) { print "\n"; next }
 
-    my $c2 = Unicode::GCString->new($c);
+    # U+25CC DOTTED CIRCLE
+    my $c2 = Unicode::GCString->new(
+      $c =~ /\p{COMBINING MARK}/ ? "\x{25CC}$c" : $c
+    );
     my $l  = $c2->columns;
 
     # I'm not 100% sure why I need this in all cases.  It would make sense in
@@ -168,7 +171,7 @@ sub print_chars {
 
     # Yeah, probably there's some insane %*0s$ invocation of printf to use
     # here, but... just no. -- rjbs, 2014-10-04
-    (my $p = $c) =~ s/\v/ /g;
+    (my $p = "$c2") =~ s/\v/ /g;
     $p .= (' ' x (2 - $l));
 
     my $chr  = ord($c);
