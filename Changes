@@ -1,6 +1,7 @@
 Revision history for App-Uni
 
 {{$NEXT}}
+        - put an encoding layer on STDERR, also
 
 9.003     2015-11-05 23:09:51-05:00 America/New_York
         - when printing combining marks, give them a DOTTED CIRCLE

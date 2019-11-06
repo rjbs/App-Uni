@@ -36,8 +36,8 @@ used that program for years before deciding I wanted to add a few features,
 which I did by rewriting from scratch.
 
 That program, in turn, was a re-implementation of a same-named program Larry
-copied to me, which accompanied Audrey for years.  However, that program was
-lost during a hard disk failure, so she coded it up from memory.
+copied to Audrey, which accompanied her years.  However, that program was lost
+during a hard disk failure, so she coded it up from memory.
 
 Thank-you, Larry, for everything. ♡
 
@@ -47,7 +47,7 @@ use 5.10.0; # for \v
 use warnings;
 
 use charnames ();
-use Encode qw(encode_utf8);
+use Encode qw(decode_utf8 encode_utf8);
 use Getopt::Long;
 use List::Util qw(max);
 use Unicode::GCString;
@@ -67,6 +67,10 @@ sub _do_help {
     "    -8                 - also show the UTF-8 bytes to encode\n";
 }
 
+sub _is_one_gc {
+  return Unicode::GCString->new($_[0])->length == 1;
+}
+
 sub run {
   my ($class, @argv) = @_;
 
@@ -74,12 +78,16 @@ sub run {
   {
     my $exit;
     local @ARGV = @argv;
+    Getopt::Long::Configure("bundling");
     GetOptions(
       "c" => \$opt{explode},
       "u" => \$opt{u_numbers},
       "n" => \$opt{names},
       "s" => \$opt{single},
-      "8" => \$opt{utf8},
+      "E" => \$opt{multiencode},
+      "D" => \$opt{multidecode},
+
+      "8+" => \$opt{utf8},
       "help|?" => \$opt{help},
     );
     @argv = @ARGV;
@@ -87,7 +95,8 @@ sub run {
 
   $class->_do_help if $opt{help};
 
-  my $n = grep { $_ } @opt{qw(explode u_numbers names single)};
+  my $n = grep { $_ }
+          @opt{qw(explode u_numbers names single multiencode multidecode)};
 
   $class->_do_help("ERROR: only one mode switch allowed!") if $n > 1;
 
@@ -97,18 +106,40 @@ sub run {
             : $opt{u_numbers}                     ? \&do_u_numbers
             : $opt{names}                         ? \&do_names
             : $opt{single}                        ? \&do_single
-            : @argv == 1 && length $argv[0] == 1  ? \&do_single
+            : $opt{multiencode}                   ? \&do_multiencode
+            : $opt{multidecode}                   ? \&do_multidecode
+            : @argv == 1 && _is_one_gc($argv[0])  ? \&do_single
             :                                       \&do_dwim;
 
   $todo->(\@argv, \%opt);
 }
 
+sub do_multiencode {
+  my ($argv, $opt) = @_;
+  die "mulitple encoding only makes sense with -8 given many times\n"
+    unless $opt->{utf8} > 1;
+
+  my $str = join q{ }, @$argv;
+  printf "INPUT    : %s\n", $str;
+  printf "UTF8 %3ix: %s\n", $opt->{utf8}, encode_utf8_n($str, $opt->{utf8});
+}
+
+sub do_multidecode {
+  my ($argv, $opt) = @_;
+  die "mulitple decoding only makes sense with -8 given many times\n"
+    unless $opt->{utf8} > 1;
+
+  my $str = join q{ }, @$argv;
+  printf "INPUT    : %s\n", $str;
+  printf "UTF8 %3ix: %s\n", $opt->{utf8}, decode_utf8_n($str, $opt->{utf8});
+}
+
 sub do_single {
   my @chars    = grep { length } @{ $_[0] };
-  if (my @too_long = grep { length > 1 } @chars) {
+  if (my @too_long = grep { ! _is_one_gc($_) } @chars) {
     die "some arguments were too long for use with -s: @too_long\n";
   }
-  print_chars(\@chars, $_[1]);
+  print_chars( explode_strings(\@chars), $_[1]);
 }
 
 sub do_explode {
@@ -132,11 +163,28 @@ sub do_u_numbers {
   print_chars( chars_by_u_numbers($_[0]), $_[1] );
 }
 
+sub decode_utf8_n {
+  my ($s, $n) = @_;
+  for (1 .. $n) {
+    $s = decode_utf8($s);
+
+    return "(encountered codepoints >0xFF after $n passes)"
+      if $s =~ /[^\x00-\xFF]/;
+  }
+  return $s;
+}
+
+sub encode_utf8_n {
+  my ($s, $n) = @_;
+  $s = encode_utf8($s) for (1..$n);
+  return $s;
+}
+
 sub print_chars {
   my ($chars, $opt) = @_;
 
   my @to_print = $opt->{utf8}
-               ? (map {; [ $_ => defined && encode_utf8($_) ] } @$chars)
+               ? (map {; [ $_ => defined && encode_utf8_n($_, 1) ] } @$chars)
                : (map {; [ $_ ] } @$chars);
 
   my $width;

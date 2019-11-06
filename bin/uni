@@ -8,6 +8,7 @@ use App::Uni;
 use Encode qw(decode);
 
 binmode STDOUT, ':encoding(utf-8)';
+binmode STDERR, ':encoding(utf-8)';
 
 @ARGV = map {; decode('UTF-8', $_) } @ARGV;
 
