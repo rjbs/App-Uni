@@ -62,6 +62,7 @@ sub _do_help {
     "uni -n SEARCH-TERMS... - find codepoints with matching names",
     "uni -c STRINGS...      - print out the codepoints in a string",
     "uni -u CODEPOINTS...   - look up and print hex codepoints",
+    "uni -x HEX-OCTETS...   - given the sequence of octets, in hex, decode",
     "",
     "Other switches:",
     "    -8                 - also show the UTF-8 bytes to encode\n";
@@ -79,6 +80,7 @@ sub run {
       "u" => \$opt{u_numbers},
       "n" => \$opt{names},
       "s" => \$opt{single},
+      "x" => \$opt{hex_octets},
       "8" => \$opt{utf8},
       "help|?" => \$opt{help},
     );
@@ -87,7 +89,7 @@ sub run {
 
   $class->_do_help if $opt{help};
 
-  my $n = grep { $_ } @opt{qw(explode u_numbers names single)};
+  my $n = grep { $_ } @opt{qw(explode u_numbers names single hex_octets)};
 
   $class->_do_help("ERROR: only one mode switch allowed!") if $n > 1;
 
@@ -97,6 +99,7 @@ sub run {
             : $opt{u_numbers}                     ? \&do_u_numbers
             : $opt{names}                         ? \&do_names
             : $opt{single}                        ? \&do_single
+            : $opt{hex_octets}                    ? \&do_hex_octets
             : @argv == 1 && length $argv[0] == 1  ? \&do_single
             :                                       \&do_dwim;
 
@@ -113,6 +116,18 @@ sub do_single {
 
 sub do_explode {
   print_chars( explode_strings($_[0]), $_[1] );
+}
+
+sub do_hex_octets {
+  my $string = '';
+  for my $hunk (@{ $_[0] }) {
+    die "input hunk $hunk is not an even-length hex string\n"
+      unless $hunk =~ /\A[0-9A-F]+\z/i && length($hunk) % 2 == 0;
+
+    $string .= chr oct "0x$_" for $hunk =~ /(..)/g;
+  }
+
+  print_chars( explode_strings([ Encode::decode_utf8($string) ], $_[1]) );
 }
 
 sub explode_strings {
