@@ -224,28 +224,34 @@ sub chars_by_name {
     }
   }
 
-  my $corpus = require 'unicore/Name.pl';
-  die "somebody beat us here" if $corpus eq '1';
+  state $corpus = do 'unicore/Name.pl';
+  unless (defined $corpus) {
+      die "couldn't parse unicore/Name.pl: $@" if $@;
+      die "couldn't read unicore/Name.pl: $!" if $!;
+      die "unicore/Name.pl returned undef";
+  }
 
-  my @lines = split /\cJ/, $corpus;
+  # https://github.com/perl/perl5/commit/b555069b72f93a232deba173dc7bf7892cfa5868
+  my ($entry_sep, $field_sep) = "$]" >= 5.031010 ? ("\n\n", "\n") : ("\n", "\t");
+  my @entries = split $entry_sep, $corpus;
   my @chars;
 
   my %seen;
-  LINE: for my $line (@lines) {
-    my $i = index($line, "\t");
-    next if rindex($line, " ", $i) >= 0; # no sequences
+  ENTRY: for my $entry (@entries) {
+    my $i = index($entry, $field_sep);
+    next if rindex($entry, " ", $i) >= 0; # no sequences
 
-    my $name = substr($line, $i+1);
-    my $ord  = hex substr($line, 0, $i);
+    my $name = substr($entry, $i+1);
+    my $ord  = hex substr($entry, 0, $i);
 
     for (@terms) {
-      next LINE unless $name =~ $_->{pattern}
-                or     defined $_->{ord} && $_->{ord} == $ord;
+      next ENTRY unless $name =~ $_->{pattern}
+                 or     defined $_->{ord} && $_->{ord} == $ord;
     }
 
-    my $c = chr hex substr $line, 0, $i;
+    my $c = chr hex substr $entry, 0, $i;
     next if $seen{$c}++;
-    push @chars, chr hex substr $line, 0, $i;
+    push @chars, chr hex substr $entry, 0, $i;
   }
 
   return \@chars;
