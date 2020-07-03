@@ -172,7 +172,7 @@ sub print_chars {
 
     # U+25CC DOTTED CIRCLE
     my $c2 = Unicode::GCString->new(
-      $c =~ /\p{COMBINING MARK}/ ? "\x{25CC}$c" : $c
+      $c =~ /\pM/ ? "\x{25CC}$c" : $c
     );
     my $l  = $c2->columns;
 
